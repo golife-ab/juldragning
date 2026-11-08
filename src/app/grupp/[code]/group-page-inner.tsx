@@ -11,5 +11,5 @@ export function GroupPageInner() {
     return <p className="text-gold/80">Ogiltig grupp</p>;
   }
 
-  return <GroupClient inviteCode={code} />;
+  return <GroupClient key={code} inviteCode={code} />;
 }

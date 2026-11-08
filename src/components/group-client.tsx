@@ -1,7 +1,10 @@
 "use client";
 
 import { readApiError } from "@/lib/api";
-import { readSession, writeSession } from "@/lib/session";
+import {
+  participationForInvite,
+  rememberParticipationFromSnapshot,
+} from "@/lib/session";
 import type { GroupSnapshot } from "@/lib/types";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -10,7 +13,9 @@ type Props = { inviteCode: string };
 
 export function GroupClient({ inviteCode }: Props) {
   const [snapshot, setSnapshot] = useState<GroupSnapshot | null>(null);
-  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [participantId] = useState<string | null>(() =>
+    participationForInvite(inviteCode)?.participantId ?? null,
+  );
   const [loading, setLoading] = useState(true);
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,22 +28,25 @@ export function GroupClient({ inviteCode }: Props) {
     if (!res.ok) throw new Error(await readApiError(res));
     const data = (await res.json()) as GroupSnapshot;
     setSnapshot(data);
+    return data;
   }, [inviteCode]);
 
   useEffect(() => {
-    const session = readSession();
-    const pid =
-      session?.inviteCode.toUpperCase() === inviteCode.toUpperCase()
-        ? session.participantId
-        : null;
-    setParticipantId(pid);
+    const pid = participantId;
 
+    // Datahämtning för gruppvy; localStorage uppdateras när svaret kommer.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- avsiktlig klienthämtning vid mount
     load(pid)
+      .then((data) => {
+        if (pid) {
+          rememberParticipationFromSnapshot(pid, data);
+        }
+      })
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Kunde inte ladda gruppen"),
       )
       .finally(() => setLoading(false));
-  }, [inviteCode, load]);
+  }, [inviteCode, load, participantId]);
 
   async function handleDraw() {
     if (!participantId) return;
@@ -53,6 +61,7 @@ export function GroupClient({ inviteCode }: Props) {
       if (!res.ok) throw new Error(await readApiError(res));
       const data = (await res.json()) as GroupSnapshot;
       setSnapshot(data);
+      rememberParticipationFromSnapshot(participantId, data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Dragningen misslyckades");
     } finally {
@@ -165,7 +174,7 @@ export function GroupClient({ inviteCode }: Props) {
 
       {snapshot.drawnAt && participantId && !snapshot.myAssignment ? (
         <p className="text-center text-gold/80 text-sm">
-          Dragningen är klar. Ladda om sidan om du inte ser din mottagare.
+          Dragningen är klar. Öppna sidan igen om du inte ser din mottagare.
         </p>
       ) : null}
 
@@ -175,23 +184,14 @@ export function GroupClient({ inviteCode }: Props) {
         </p>
       ) : null}
 
-      {!participantId && readSession() === null ? (
-        <p className="text-center text-xs text-gold/60">
-          Tips: öppna inbjudningslänken på samma enhet för att spara din session.
-        </p>
-      ) : null}
-
-      {participantId ? (
-        <button
-          type="button"
-          className="mx-auto block text-xs text-gold/50 underline"
-          onClick={() => {
-            writeSession({ participantId, inviteCode: snapshot.inviteCode });
-          }}
-        >
-          Spara session på den här enheten
-        </button>
-      ) : null}
+      <p className="text-center text-xs text-gold/60">
+        <Link href="/" className="underline hover:text-gold/80">
+          Tillbaka till startsidan
+        </Link>
+        {participantId
+          ? ", där hittar du alla dina grupper på den här enheten."
+          : "."}
+      </p>
     </div>
   );
 }

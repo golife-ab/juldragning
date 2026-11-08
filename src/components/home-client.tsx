@@ -1,7 +1,8 @@
 "use client";
 
 import { readApiError } from "@/lib/api";
-import { writeSession } from "@/lib/session";
+import { MyGroupsList } from "@/components/my-groups-list";
+import { rememberParticipation } from "@/lib/session";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
@@ -40,7 +41,7 @@ export function HomeClient() {
           inviteCode: string;
           participantId: string;
         };
-        writeSession({
+        rememberParticipation({
           inviteCode: data.inviteCode,
           participantId: data.participantId,
         });
@@ -56,7 +57,7 @@ export function HomeClient() {
           inviteCode: string;
           participantId: string;
         };
-        writeSession({
+        rememberParticipation({
           inviteCode: data.inviteCode,
           participantId: data.participantId,
         });
@@ -71,6 +72,7 @@ export function HomeClient() {
 
   return (
     <div className="mx-auto w-full max-w-md">
+      <MyGroupsList />
       <div className="mb-6 flex rounded-xl border border-gold/30 bg-forest-900/60 p-1">
         <button
           type="button"
